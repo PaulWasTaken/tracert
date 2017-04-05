@@ -1,0 +1,1 @@
+This is an example of tracert(traceroute) program. To launch it  type "python tracert.py [addresses]". It prints the sequence of addresses with AS and region.
