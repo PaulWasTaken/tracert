@@ -19,11 +19,11 @@ def valid_addr(address):
         ip_address(address)
         return True
     except ValueError:
-        pattern_dns = r'^[a-zA-Z_0-9-]+\.[a-zA-Z-0-9]+\.[a-zA-Z-]+$'
-        if not re.search(pattern_dns, address):
-            print("Wrong address: {}".format(address))
+        try:
+            socket.gethostbyname(address)
+            return True
+        except socket.gaierror:
             return False
-        return True
 
 
 def trace(address):
@@ -53,6 +53,9 @@ def trace(address):
                 print("{number}.  {ip}\r\nlocal\r\n".format(number=ttl, ip=addr[0]))
         except socket.timeout:
             print("{number}.  *\r\n\r\n".format(number=ttl))
+        except OSError:
+            print("Wrong address: {}".format(address))
+            addr = (address, None)
         finally:
             if addr[0] == address or ttl > max_hops:
                 print("FINISHED FOR {address}\r\n".format(address=address))

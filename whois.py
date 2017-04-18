@@ -15,7 +15,7 @@ class Information:
     }
 
     def __init__(self, ip, port=43):
-        self.servers_name = [x.upper() for x in Information.whois_servers.keys()]
+        self.servers_name = [x.upper() for x in Information.whois_servers]
         self.buffer_size = 4096
         self.response = ""
         self.name = ""
@@ -30,12 +30,9 @@ class Information:
             pattern = Information.whois_servers[site]
             regex = "(?<={}:).+"
             try:
-                self.name = re.search(regex.format(pattern.netname), self.response).\
-                    group().replace(" ", "")
-                self.as_number = re.search(regex.format(pattern.origin), self.response). \
-                    group().replace(" ", "")
-                self.country = re.search(regex.format(pattern.country), self.response). \
-                    group().replace(" ", "")
+                self.name = self.search(regex, pattern.netname)
+                self.as_number = self.search(regex, pattern.origin)
+                self.country = self.search(regex, pattern.country)
                 for name in self.servers_name:
                     if name in self.name:
                         raise AttributeError
@@ -47,6 +44,10 @@ class Information:
                 self.as_number = ""
                 self.country = ""
                 continue
+
+    def search(self, regex, pattern):
+        return re.search(regex.format(pattern), self.response)\
+            .group().replace(" ", "")
 
     def get_info_from_server(self, site):
         self.response = ""
