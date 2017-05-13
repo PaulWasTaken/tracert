@@ -11,7 +11,10 @@ def main(args):
     for address in args.addresses:
         if not valid_addr(address):
             continue
-        trace(socket.gethostbyname(address))
+        try:
+            trace(socket.gethostbyname(address))
+        except KeyboardInterrupt:
+            print("Stopped")
 
 
 def valid_addr(address):
@@ -34,7 +37,7 @@ def trace(address):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_RAW,
                              socket.IPPROTO_ICMP)
-        sock.settimeout(1)
+        sock.settimeout(1.5)
     except OSError:
         print("You should run it with administrator rights.")
         return
@@ -47,17 +50,17 @@ def trace(address):
             if not IPv4Address(addr[0]).is_private:
                 info = Information(addr[0])
                 info.get_info()
-                output = form_report(info, ttl, addr[0])
-                print(output)
+                print(form_report(
+                    ttl, addr[0], info.name, info.as_number, info.country))
             else:
-                print("{number}.  {ip}\r\nlocal\r\n".format(number=ttl, ip=addr[0]))
+                print(form_report(ttl, addr[0], "local"))
         except socket.timeout:
-            print("{number}.  *\r\n\r\n".format(number=ttl))
+            print(form_report(ttl, "*"))
         except OSError:
-            print("Wrong address: {}".format(address))
+            print("{} is invalid".format(address))
             addr = (address, None)
         finally:
-            if addr[0] == address or ttl > max_hops:
+            if addr[0] == address or ttl >= max_hops:
                 print("FINISHED FOR {address}\r\n".format(address=address))
                 break
             ttl += 1
@@ -65,25 +68,22 @@ def trace(address):
     sock.close()
 
 
-def form_report(info, number, address):
+def form_report(number, address, name="", as_number="", country=""):
     output = "{number}.  {ip}\r\n".format(number=number, ip=address)
-    if info.name:
-        output += info.name
-    if info.as_number:
-        try:
-            number = re.search("\d+$", info.as_number).group()
-            output += " " + number
-        except AttributeError:
-            output += " " + info.as_number
-    if info.country:
-        output += " " + info.country
+    try:
+        number = re.search("\d+$", as_number).group()
+        output += " " + number
+    except AttributeError:
+        pass
+    output += ", ".join([elem for elem in [name, as_number, country] if elem])
     output += "\r\n"
     return output
 
 
 def create_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("addresses", help="Addresses you want to trace.", nargs='*')
+    parser.add_argument("addresses", help="Addresses you want to trace.",
+                        nargs='*')
     return parser
 
 

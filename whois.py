@@ -1,21 +1,21 @@
 import socket
-import re
 from collections import namedtuple
+from re import search
+from urllib import request
 
 Pattern = namedtuple("Pattern", "netname, origin, country")
 
 
 class Information:
     whois_servers = {
-        "ripe": Pattern("netname", "origin", "country"),
-        "afrinic": Pattern("netname", "origin", "country"),
-        "lacnic": Pattern("NetName", "OriginAS", "Country"),
-        "arin": Pattern("NetName", "OriginAS", "Country"),
-        "apnic": Pattern("netname", "origin", "country")
+        "whois.ripe.net": Pattern("netname", "origin", "country"),
+        "whois.afrinic.net": Pattern("netname", "origin", "country"),
+        "whois.lacnic.net": Pattern("NetName", "OriginAS", "Country"),
+        "whois.arin.net": Pattern("NetName", "OriginAS", "Country"),
+        "whois.apnic.net": Pattern("netname", "origin", "country")
     }
 
     def __init__(self, ip, port=43):
-        self.servers_name = [x.upper() for x in Information.whois_servers]
         self.buffer_size = 4096
         self.response = ""
         self.name = ""
@@ -25,38 +25,36 @@ class Information:
         self.port = port
 
     def get_info(self):
-        for site in Information.whois_servers:
-            self.get_info_from_server(site)
-            pattern = Information.whois_servers[site]
-            regex = "(?<={}:).+"
-            try:
-                self.name = self.search(regex, pattern.netname)
-                self.as_number = self.search(regex, pattern.origin)
-                self.country = self.search(regex, pattern.country)
-                for name in self.servers_name:
-                    if name in self.name:
-                        raise AttributeError
-                    else:
-                        continue
-                return
-            except AttributeError:
-                self.name = ""
-                self.as_number = ""
-                self.country = ""
-                continue
+        server = self.get_responsible_server()
+        self.get_info_from_server(server)
+        pattern = Information.whois_servers[server]
+        self.name = self.search(pattern.netname)
+        self.as_number = self.search(pattern.origin)
+        self.country = self.search(pattern.country)
 
-    def search(self, regex, pattern):
-        return re.search(regex.format(pattern), self.response)\
-            .group().replace(" ", "")
+    def get_responsible_server(self):
+        response = request.urlopen("https://www.iana.org/whois?q={ip}".format(
+            ip=self.ip)).read()
+        return search(b"(?<=whois:)[^\\n]+", response) \
+            .group() \
+            .lstrip() \
+            .decode()
 
-    def get_info_from_server(self, site):
+    def search(self, pattern):
+        regex = "(?<={}:).+"
+        res = search(regex.format(pattern), self.response)
+        if res:
+            return res.group().lstrip()
+        else:
+            return ""
+
+    def get_info_from_server(self, server):
         self.response = ""
-        with socket.create_connection(
-            ("whois.{name}.net".format(name=site), self.port)) as sock:
-            sock.settimeout(1)
-            if site == "arin":
+        with socket.create_connection((server, self.port)) as sock:
+            sock.settimeout(1.5)
+            if server == "whois.arin.net":
                 sock.sendall(b"n " + self.ip.encode() + b'\r\n')
-            elif site == "afrinic":
+            elif server == "whois.afrinic.net":
                 sock.sendall(b"r < " + self.ip.encode() + b"\r\n")
             else:
                 sock.sendall(self.ip.encode() + b'\r\n')
