@@ -54,8 +54,8 @@ class Information:
             sock.settimeout(1.5)
             if server == "whois.arin.net":
                 sock.sendall(b"n " + self.ip.encode() + b'\r\n')
-            elif server == "whois.afrinic.net":
-                sock.sendall(b"r < " + self.ip.encode() + b"\r\n")
+            # elif server == "whois.afrinic.net":
+            #     sock.sendall(b"r < " + self.ip.encode() + b"\r\n")
             else:
                 sock.sendall(self.ip.encode() + b'\r\n')
             while True:
