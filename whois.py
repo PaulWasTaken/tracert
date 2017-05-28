@@ -17,7 +17,7 @@ class Information:
 
     def __init__(self, ip, port=43):
         self.buffer_size = 4096
-        self.response = ""
+        self.response = b""
         self.name = ""
         self.as_number = ""
         self.country = ""
@@ -27,6 +27,9 @@ class Information:
     def get_info(self):
         server = self.get_responsible_server()
         self.get_info_from_server(server)
+        if not self.response:
+            self.name = "Response not in unicode. Con not proceed."
+            return
         pattern = Information.whois_servers[server]
         self.name = self.search(pattern.netname)
         self.as_number = self.search(pattern.origin)
@@ -49,17 +52,19 @@ class Information:
             return ""
 
     def get_info_from_server(self, server):
-        self.response = ""
+        self.response = b""
         with socket.create_connection((server, self.port)) as sock:
             sock.settimeout(1.5)
             if server == "whois.arin.net":
                 sock.sendall(b"n " + self.ip.encode() + b'\r\n')
-            # elif server == "whois.afrinic.net":
-            #     sock.sendall(b"r < " + self.ip.encode() + b"\r\n")
             else:
                 sock.sendall(self.ip.encode() + b'\r\n')
             while True:
-                buf = sock.recv(self.buffer_size).decode()
+                buf = sock.recv(self.buffer_size)
                 if not buf:
+                    try:
+                        self.response = self.response.decode()
+                    except UnicodeDecodeError:
+                        self.response = None
                     break
                 self.response += buf
